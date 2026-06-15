@@ -1,0 +1,13 @@
+{
+  "name": "super-mars-studio-chat",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Super Mars Studio customer chat website",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
