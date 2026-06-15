@@ -1,0 +1,6 @@
+data
+tools
+*.log
+*.txt
+*.ps1
+*.bat
