@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Super Mars工作室</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="welcome" id="welcome">
+      <div class="brand">
+        <div class="brand-mark">SM</div>
+        <div>
+          <p class="eyebrow">SUPER MARS STUDIO</p>
+          <h1>Super Mars工作室</h1>
+        </div>
+      </div>
+      <p class="intro">输入对应的房间号，立即进入专属聊天室。</p>
+      <form id="join-form" class="join-form">
+        <label>
+          房间号
+          <input id="room-input" maxlength="24" autocomplete="off" placeholder="请输入顾客房间号" required>
+        </label>
+        <button class="primary-button" type="submit">进入聊天室</button>
+      </form>
+      <p class="tip">房间号由客服提供，请勿分享给无关人员。</p>
+    </section>
+
+    <section class="chat hidden" id="chat">
+      <header class="chat-header">
+        <div class="brand compact">
+          <div class="brand-mark">SM</div>
+          <div>
+            <p class="eyebrow">当前房间</p>
+            <h2 id="room-title"></h2>
+          </div>
+        </div>
+        <div class="header-actions">
+          <span class="online"><i></i><b id="online-count">1</b> 人在线</span>
+          <button id="copy-link" class="quiet-button" type="button">复制邀请链接</button>
+          <button id="leave-room" class="quiet-button" type="button">退出</button>
+        </div>
+      </header>
+
+      <div class="messages" id="messages" aria-live="polite">
+        <div class="empty-state" id="empty-state">
+          <strong>房间已经准备好了</strong>
+          <span>发条消息，开启聊天吧。</span>
+        </div>
+      </div>
+
+      <form class="composer" id="message-form">
+        <textarea id="message-input" maxlength="500" rows="1" placeholder="输入消息，按 Enter 发送" required></textarea>
+        <button class="send-button" type="submit">发送</button>
+      </form>
+      <div class="status" id="status">正在连接…</div>
+    </section>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
