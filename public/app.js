@@ -4,6 +4,11 @@ const joinForm = document.querySelector("#join-form");
 const messageForm = document.querySelector("#message-form");
 const roomInput = document.querySelector("#room-input");
 const messageInput = document.querySelector("#message-input");
+const imageInput = document.querySelector("#image-input");
+const imagePreview = document.querySelector("#image-preview");
+const imagePreviewImg = document.querySelector("#image-preview-img");
+const dropOverlay = document.querySelector("#drop-overlay");
+const sendButton = messageForm.querySelector(".send-button");
 const messagesEl = document.querySelector("#messages");
 const emptyState = document.querySelector("#empty-state");
 const roomTitle = document.querySelector("#room-title");
@@ -15,12 +20,23 @@ const clientId = sessionStorage.clientId || crypto.randomUUID();
 sessionStorage.clientId = clientId;
 const guestName = sessionStorage.guestName || `顾客-${clientId.slice(0, 4).toUpperCase()}`;
 sessionStorage.guestName = guestName;
-let state = { name: guestName, room: "", lastId: 0, polling: false, timer: null };
+let state = { name: guestName, room: "", lastId: 0, polling: false, timer: null, image: "", imageProcessing: false };
+let dragDepth = 0;
 
 const params = new URLSearchParams(location.search);
 roomInput.value = params.get("room") || localStorage.lastRoom || "";
 
 document.querySelector("#leave-room").addEventListener("click", leaveRoom);
+document.querySelector("#choose-image").addEventListener("click", () => imageInput.click());
+document.querySelector("#remove-image").addEventListener("click", clearImage);
+imageInput.addEventListener("change", prepareImage);
+chat.addEventListener("dragenter", handleDragEnter);
+chat.addEventListener("dragover", handleDragOver);
+chat.addEventListener("dragleave", handleDragLeave);
+chat.addEventListener("drop", handleDrop);
+messageInput.addEventListener("paste", handlePaste);
+document.addEventListener("dragover", preventFileNavigation);
+document.addEventListener("drop", preventFileNavigation);
 document.querySelector("#copy-link").addEventListener("click", async () => {
   const url = new URL(location.href);
   url.search = "";
@@ -37,7 +53,7 @@ joinForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const room = roomInput.value.trim();
   if (!room) return;
-  state = { name: guestName, room, lastId: 0, polling: false, timer: null };
+  state = { name: guestName, room, lastId: 0, polling: false, timer: null, image: "", imageProcessing: false };
   localStorage.lastRoom = room;
   roomTitle.textContent = room;
   welcome.classList.add("hidden");
@@ -61,20 +77,27 @@ messageInput.addEventListener("input", resizeComposer);
 async function sendMessage(event) {
   event.preventDefault();
   const text = messageInput.value.trim();
-  if (!text || !state.room) return;
+  const image = state.image;
+  if (state.imageProcessing) return showToast("图片正在处理，请稍候");
+  if ((!text && !image) || !state.room) return;
+  sendButton.disabled = true;
   messageInput.value = "";
+  clearImage();
   resizeComposer();
   try {
     const response = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ room: state.room, name: state.name, text, clientId })
+      body: JSON.stringify({ room: state.room, name: state.name, text, image, clientId })
     });
     if (!response.ok) throw new Error("发送失败");
     await poll();
   } catch {
     messageInput.value = text;
+    if (image) setImage(image);
     showToast("消息发送失败，请检查连接");
+  } finally {
+    sendButton.disabled = false;
   }
 }
 
@@ -118,7 +141,24 @@ function addMessage(message) {
 
   const bubble = document.createElement("div");
   bubble.className = "message-bubble";
-  bubble.textContent = message.text;
+  if (message.image) {
+    const link = document.createElement("a");
+    link.href = message.image;
+    link.target = "_blank";
+    link.rel = "noopener";
+    const image = document.createElement("img");
+    image.className = "message-image";
+    image.src = message.image;
+    image.alt = "聊天图片";
+    link.append(image);
+    bubble.append(link);
+  }
+  if (message.text) {
+    const text = document.createElement("div");
+    text.className = "message-text";
+    text.textContent = message.text;
+    bubble.append(text);
+  }
   item.append(meta, bubble);
   messagesEl.append(item);
   if (nearBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -135,6 +175,131 @@ function leaveRoom() {
 function resizeComposer() {
   messageInput.style.height = "auto";
   messageInput.style.height = `${Math.min(messageInput.scrollHeight, 120)}px`;
+}
+
+async function prepareImage() {
+  const file = imageInput.files[0];
+  if (file) await processImageFile(file);
+}
+
+async function processImageFile(file) {
+  if (!isImageFile(file)) return showToast("请拖入 JPG、PNG、WebP 或 GIF 图片");
+  state.imageProcessing = true;
+  sendButton.disabled = true;
+  showToast("正在处理图片…");
+  try {
+    const image = file.type === "image/gif" && file.size <= 450000
+      ? await readFile(file)
+      : await compressImage(file);
+    if (image.length > 620000) throw new Error("图片太大");
+    setImage(image);
+    messageInput.focus();
+    showToast("图片已进入输入框，点击发送");
+  } catch {
+    clearImage();
+    showToast("图片太大或无法读取");
+  } finally {
+    state.imageProcessing = false;
+    sendButton.disabled = false;
+  }
+}
+
+function isImageFile(file) {
+  return file && (
+    ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type) ||
+    /\.(jpe?g|png|webp|gif)$/i.test(file.name || "")
+  );
+}
+
+function preventFileNavigation(event) {
+  if (hasFiles(event.dataTransfer)) event.preventDefault();
+}
+
+function handleDragEnter(event) {
+  if (!hasFiles(event.dataTransfer)) return;
+  event.preventDefault();
+  dragDepth++;
+  chat.classList.add("is-dragging");
+}
+
+function handleDragOver(event) {
+  if (!hasFiles(event.dataTransfer)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+}
+
+function handleDragLeave(event) {
+  if (!dragDepth) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) chat.classList.remove("is-dragging");
+}
+
+async function handleDrop(event) {
+  if (!hasFiles(event.dataTransfer)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  dragDepth = 0;
+  chat.classList.remove("is-dragging");
+  const file = [...event.dataTransfer.files].find(isImageFile);
+  if (file) await processImageFile(file);
+  else showToast("没有找到可用图片，请从文件夹拖入图片文件");
+}
+
+async function handlePaste(event) {
+  const file = [...event.clipboardData.items]
+    .find(item => item.kind === "file" && item.type.startsWith("image/"))
+    ?.getAsFile();
+  if (!file) return;
+  event.preventDefault();
+  await processImageFile(file);
+}
+
+function hasFiles(dataTransfer) {
+  return dataTransfer && [...dataTransfer.types].includes("Files");
+}
+
+function readFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressImage(file) {
+  const source = "createImageBitmap" in window
+    ? await createImageBitmap(file)
+    : await loadImage(await readFile(file));
+  const scale = Math.min(1, 1280 / Math.max(source.width, source.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(source.width * scale));
+  canvas.height = Math.max(1, Math.round(source.height * scale));
+  canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+  if (source.close) source.close();
+  return canvas.toDataURL("image/jpeg", 0.72);
+}
+
+function loadImage(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = source;
+  });
+}
+
+function setImage(image) {
+  state.image = image;
+  imagePreviewImg.src = image;
+  imagePreview.classList.remove("hidden");
+}
+
+function clearImage() {
+  state.image = "";
+  imageInput.value = "";
+  imagePreviewImg.removeAttribute("src");
+  imagePreview.classList.add("hidden");
 }
 
 function showToast(text) {
