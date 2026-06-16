@@ -37,12 +37,34 @@ button { cursor: pointer; }
 
 .welcome,
 .chat {
+  position: relative;
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.8);
   background: var(--panel);
   box-shadow: var(--shadow);
   backdrop-filter: blur(16px);
 }
+
+.drop-overlay {
+  position: absolute;
+  inset: 12px;
+  z-index: 20;
+  display: grid;
+  place-content: center;
+  gap: 7px;
+  border: 2px dashed var(--green);
+  border-radius: 22px;
+  color: var(--green);
+  text-align: center;
+  background: rgba(244, 251, 246, 0.94);
+  opacity: 0;
+  transform: scale(0.985);
+  transition: 150ms;
+  pointer-events: none;
+}
+.drop-overlay strong { font-size: 20px; }
+.drop-overlay span { color: var(--muted); font-size: 12px; }
+.chat.is-dragging .drop-overlay { opacity: 1; transform: scale(1); }
 
 .welcome {
   max-width: 510px;
@@ -132,6 +154,7 @@ input:focus, textarea:focus {
 }
 
 .primary-button:hover, .send-button:hover { background: var(--green-dark); }
+.send-button:disabled { cursor: wait; opacity: 0.55; }
 
 .quiet-button {
   border: 1px solid var(--line);
@@ -209,6 +232,8 @@ input:focus, textarea:focus {
   box-shadow: 0 5px 18px rgba(38, 57, 45, 0.08);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.55;
 }
 .message.mine .message-bubble {
   border-radius: 17px 6px 17px 17px;
@@ -218,12 +243,52 @@ input:focus, textarea:focus {
 
 .composer {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr auto;
   gap: 10px;
   padding: 15px 20px 10px;
   border-top: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.65);
 }
+
+.image-button {
+  min-width: 58px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+  background: white;
+}
+.image-button:hover { border-color: var(--green); background: #f3f8f4; }
+
+.image-preview {
+  display: grid;
+  grid-template-columns: 58px 1fr auto;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.82);
+}
+.image-preview img {
+  width: 58px;
+  height: 48px;
+  border-radius: 9px;
+  object-fit: cover;
+}
+.image-preview div { display: grid; gap: 3px; font-size: 11px; color: var(--muted); }
+.image-preview strong { color: var(--ink); font-size: 12px; }
+.image-preview .quiet-button { padding: 7px 10px; font-size: 11px; }
+
+.message-image {
+  display: block;
+  width: auto;
+  max-width: min(360px, 100%);
+  max-height: 360px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+.message-text:not(:first-child) { margin-top: 8px; }
 
 textarea {
   min-height: 48px;
