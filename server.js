@@ -44,6 +44,15 @@ function clean(value, maxLength) {
   return String(value ?? "").trim().slice(0, maxLength);
 }
 
+function normalizeRoom(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, "")
+    .toUpperCase()
+    .slice(0, 24);
+}
+
 function sendJson(response, status, value) {
   response.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -97,7 +106,7 @@ async function handleApi(request, response, url) {
   }
 
   if (url.pathname === "/api/messages" && request.method === "GET") {
-    const room = clean(url.searchParams.get("room"), 24);
+    const room = normalizeRoom(url.searchParams.get("room"));
     const clientId = clean(url.searchParams.get("client"), 48);
     const after = Number(url.searchParams.get("after")) || 0;
     if (!room) return sendJson(response, 400, { error: "Room is required" });
@@ -114,7 +123,7 @@ async function handleApi(request, response, url) {
     } catch (error) {
       return sendJson(response, 400, { error: error.message });
     }
-    const room = clean(payload.room, 24);
+    const room = normalizeRoom(payload.room);
     const name = clean(payload.name, 20);
     const text = clean(payload.text, 500);
     const clientId = clean(payload.clientId, 48);
@@ -156,7 +165,7 @@ const server = http.createServer(async (request, response) => {
     const filePath = path.join(publicRoot, staticFiles.get(url.pathname));
     response.writeHead(200, {
       "Content-Type": contentTypes[path.extname(filePath)] || "application/octet-stream",
-      "Cache-Control": "no-cache"
+      "Cache-Control": "no-store"
     });
     fs.createReadStream(filePath).pipe(response);
   } catch (error) {
