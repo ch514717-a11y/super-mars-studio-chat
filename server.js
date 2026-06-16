@@ -10,6 +10,10 @@ const publicRoot = path.join(root, "public");
 const dataRoot = globalThis.__LI_AOTANG_DATA_DIR || environment.DATA_DIR || path.join(root, "data");
 const messageFile = path.join(dataRoot, "messages.json");
 const maxMessages = 3000;
+const maxStoredCharacters = 12000000;
+const maxRequestSize = 700000;
+const maxImageLength = 620000;
+const allowedImagePattern = /^data:image\/(?:jpeg|png|webp|gif);base64,[a-z0-9+/=]+$/i;
 const presence = new Map();
 
 fs.mkdirSync(dataRoot, { recursive: true });
@@ -54,7 +58,7 @@ function readJson(request) {
     request.setEncoding("utf8");
     request.on("data", chunk => {
       body += chunk;
-      if (body.length > 16384) {
+      if (body.length > maxRequestSize) {
         reject(new Error("Request is too large"));
         request.destroy();
       }
@@ -114,13 +118,18 @@ async function handleApi(request, response, url) {
     const name = clean(payload.name, 20);
     const text = clean(payload.text, 500);
     const clientId = clean(payload.clientId, 48);
-    if (!room || !name || !text) {
-      return sendJson(response, 400, { error: "Room, name and message are required" });
+    const image = clean(payload.image, maxImageLength);
+    if (!room || !name || (!text && !image)) {
+      return sendJson(response, 400, { error: "Room, name and message content are required" });
+    }
+    if (image && !allowedImagePattern.test(image)) {
+      return sendJson(response, 400, { error: "Invalid image" });
     }
 
-    const message = { id: nextId++, room, name, text, clientId, time: new Date().toISOString() };
+    const message = { id: nextId++, room, name, text, image, clientId, time: new Date().toISOString() };
     messages.push(message);
     if (messages.length > maxMessages) messages = messages.slice(-maxMessages);
+    while (messages.length > 1 && JSON.stringify(messages).length > maxStoredCharacters) messages.shift();
     try {
       saveMessages();
     } catch (error) {
