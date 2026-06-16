@@ -24,7 +24,7 @@ let state = { name: guestName, room: "", lastId: 0, polling: false, timer: null,
 let dragDepth = 0;
 
 const params = new URLSearchParams(location.search);
-roomInput.value = params.get("room") || localStorage.lastRoom || "";
+roomInput.value = normalizeRoom(params.get("room") || localStorage.lastRoom || "");
 
 document.querySelector("#leave-room").addEventListener("click", leaveRoom);
 document.querySelector("#choose-image").addEventListener("click", () => imageInput.click());
@@ -51,8 +51,9 @@ document.querySelector("#copy-link").addEventListener("click", async () => {
 
 joinForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const room = roomInput.value.trim();
+  const room = normalizeRoom(roomInput.value);
   if (!room) return;
+  roomInput.value = room;
   state = { name: guestName, room, lastId: 0, polling: false, timer: null, image: "", imageProcessing: false };
   localStorage.lastRoom = room;
   roomTitle.textContent = room;
@@ -64,6 +65,10 @@ joinForm.addEventListener("submit", (event) => {
   messageInput.focus();
   poll();
 });
+
+if (params.has("room") && roomInput.value) {
+  joinForm.requestSubmit();
+}
 
 messageForm.addEventListener("submit", sendMessage);
 messageInput.addEventListener("keydown", (event) => {
@@ -111,6 +116,7 @@ async function poll() {
     if (!response.ok) throw new Error("连接失败");
     const data = await response.json();
     data.messages.forEach(addMessage);
+    restyleMessages();
     onlineCount.textContent = data.online;
     statusEl.textContent = "已连接";
   } catch {
@@ -129,6 +135,7 @@ function addMessage(message) {
   const item = document.createElement("article");
   item.className = `message${message.clientId === clientId ? " mine" : ""}`;
   item.dataset.messageId = message.id;
+  applyMessageItemStyle(item);
 
   const meta = document.createElement("div");
   meta.className = "message-meta";
@@ -141,6 +148,7 @@ function addMessage(message) {
 
   const bubble = document.createElement("div");
   bubble.className = "message-bubble";
+  applyMessageBubbleStyle(bubble);
   if (message.image) {
     const link = document.createElement("a");
     link.href = message.image;
@@ -162,6 +170,40 @@ function addMessage(message) {
   item.append(meta, bubble);
   messagesEl.append(item);
   if (nearBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function applyMessageItemStyle(item) {
+  item.style.width = "fit-content";
+  item.style.maxWidth = "72%";
+  if (item.classList.contains("mine")) item.style.marginLeft = "auto";
+}
+
+function normalizeRoom(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, "")
+    .toUpperCase()
+    .slice(0, 24);
+}
+
+function applyMessageBubbleStyle(bubble) {
+  Object.assign(bubble.style, {
+    display: "inline-block",
+    maxWidth: "100%",
+    color: "var(--ink)",
+    background: "rgba(255, 255, 255, 0.46)",
+    border: "1px solid rgba(255, 255, 255, 0.48)",
+    boxShadow: "0 5px 18px rgba(38, 57, 45, 0.045)",
+    backdropFilter: "blur(10px)",
+    fontSize: "10px",
+    lineHeight: "1.38"
+  });
+}
+
+function restyleMessages() {
+  document.querySelectorAll(".message").forEach(applyMessageItemStyle);
+  document.querySelectorAll(".message-bubble").forEach(applyMessageBubbleStyle);
 }
 
 function leaveRoom() {
