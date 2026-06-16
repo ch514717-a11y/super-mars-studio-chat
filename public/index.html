@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Super Mars工作室</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=20260615-image-drag-2">
 </head>
 <body>
   <main class="shell">
@@ -28,6 +28,10 @@
     </section>
 
     <section class="chat hidden" id="chat">
+      <div class="drop-overlay" id="drop-overlay">
+        <strong>松开鼠标添加图片</strong>
+        <span>图片会进入聊天输入框，确认后点击发送</span>
+      </div>
       <header class="chat-header">
         <div class="brand compact">
           <div class="brand-mark">SM</div>
@@ -50,14 +54,24 @@
         </div>
       </div>
 
+      <div class="image-preview hidden" id="image-preview">
+        <img id="image-preview-img" alt="待发送图片预览">
+        <div>
+          <strong>图片已准备好</strong>
+          <span>可附带文字一起发送</span>
+        </div>
+        <button id="remove-image" class="quiet-button" type="button">移除</button>
+      </div>
       <form class="composer" id="message-form">
-        <textarea id="message-input" maxlength="500" rows="1" placeholder="输入消息，按 Enter 发送" required></textarea>
+        <input id="image-input" class="hidden" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+        <button id="choose-image" class="image-button" type="button" title="上传图片" aria-label="上传图片">图片</button>
+        <textarea id="message-input" maxlength="500" rows="1" placeholder="输入消息，拖入图片或按 Ctrl+V 粘贴"></textarea>
         <button class="send-button" type="submit">发送</button>
       </form>
       <div class="status" id="status">正在连接…</div>
     </section>
   </main>
   <div class="toast" id="toast"></div>
-  <script src="/app.js"></script>
+  <script src="/app.js?v=20260615-image-drag-2"></script>
 </body>
 </html>
